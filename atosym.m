@@ -36,18 +36,12 @@
 #import <Foundation/Foundation.h>
 #import <sys/param.h>               /* MAXPATHLEN */
 
-#pragma mark Type definitions
-
-typedef enum WOArchitectures {
-    WOArchPPC,
-    WOArchI386
-} WOArchitectures;
-
 #pragma mark Global variables
 
-int         arch    = 0;
-NSString    *dsym   = nil;
-unsigned    offset  = 0;
+NSString    *arch       = nil;
+NSString    *dsym       = nil;
+unsigned    offset      = 0;
+const char  *version    = "1.0.1";
 
 @interface NSString (atosym)
 
@@ -79,17 +73,12 @@ unsigned    offset  = 0;
 
 void show_usage (void)
 {
+    fprintf(stdout, "atosym version %s, Copyright 2006 Wincent Colaita.\n", version);
     fprintf(stdout, "usage: atosym -d dSYM-file [-arch i386|ppc] [-o offset] [address ...]\n");
 }
 
 NSString *get_symbol_information (unsigned address)
 {
-    NSString *gdb = nil;
-    if (arch == WOArchI386)
-        gdb = @"/usr/libexec/gdb/gdb-i386-apple-darwin";
-    else if (arch == WOArchPPC)
-        gdb = @"/usr/libexec/gdb/gdb-powerpc-apple-darwin";
-    
     const char *command = [[NSString stringWithFormat:@"info line *%#x", address + offset] UTF8String];
     char *template[MAXPATHLEN];
     strcpy((char *)template, "/tmp/atosym.XXXXXX");
@@ -109,11 +98,11 @@ NSString *get_symbol_information (unsigned address)
     NSTask          *task       = [[NSTask alloc] init];
     NSPipe          *pipe       = [NSPipe pipe];
     NSFileHandle    *handle     = [pipe fileHandleForReading];
-    NSArray         *arguments  = 
-        [NSArray arrayWithObjects:@"--batch", @"--quiet", @"-x", [NSString stringWithUTF8String:(const char*)template], dsym, nil];
+    NSArray         *arguments  = [NSArray arrayWithObjects:@"-arch", arch, @"--batch", @"--quiet", @"-x", 
+        [NSString stringWithUTF8String:(const char*)template], dsym, nil];
     
     [task setStandardOutput:pipe];
-    [task setLaunchPath:gdb];
+    [task setLaunchPath:@"/usr/bin/gdb"];
     [task setArguments:arguments];
     [task launch];
     
@@ -189,17 +178,10 @@ int main (int argc, const char * argv[])
     dsym = [file retain]; // leak until exit
     
     NSString *architecture = [[defaults stringForKey:@"architecture"] lowercaseString];
-    if (!architecture) architecture = @"i386";
-    if ([architecture isEqualTo:@"i386"])
-        arch = WOArchI386;
-    else if ([architecture isEqualTo:@"ppc"])
-        arch = WOArchPPC;
+    if (!architecture)
+        arch = @"i386";
     else
-    {
-        fprintf(stderr, "error: unknown architecture, \"%s\"\n", [architecture UTF8String]);
-        show_usage();
-        goto Cleanup;
-    }
+        arch = [architecture retain]; // leak until exit
     
     NSString *offsetString = [defaults stringForKey:@"o"];
     if (offsetString)
