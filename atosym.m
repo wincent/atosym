@@ -170,10 +170,21 @@ int main (int argc, const char * argv[])
         show_usage();
         goto Cleanup;
     }
-    if (![manager fileExistsAtPath:file])
+    BOOL isDir;
+    if (![manager fileExistsAtPath:file isDirectory:&isDir])
     {
         fprintf(stderr, "error: file \"%s\" does not exist\n", [file fileSystemRepresentation]);
         goto Cleanup;
+    }
+    if (isDir)
+    {
+        NSArray *dSYMs = [[NSBundle bundleWithPath:file] pathsForResourcesOfType:nil inDirectory:@"DWARF"];
+        if ([dSYMs count] != 1)
+        {
+            fprintf(stderr, "error: found %d dSYM files (expected 1) in \"%s\"\n", [dSYMs count], [file fileSystemRepresentation]);
+            goto Cleanup;
+        }
+        file = [dSYMs objectAtIndex:0];
     }
     dsym = [file retain]; // leak until exit
     
