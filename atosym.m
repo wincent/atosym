@@ -79,7 +79,7 @@ void show_usage (void)
 
 NSString *get_symbol_information (unsigned address)
 {
-    const char *command = [[NSString stringWithFormat:@"info line *%#x", address + offset] UTF8String];
+    const char *command = [[NSString stringWithFormat:@"info line *%#x", address - offset] UTF8String];
     char *template[MAXPATHLEN];
     strcpy((char *)template, "/tmp/atosym.XXXXXX");
     int temp = mkstemp((char *)template);
